@@ -1,0 +1,86 @@
+use anyhow::Result;
+use serde_json::Value;
+use std::collections::HashMap;
+use sysinfo::{System, SystemExt, DiskExt};
+
+use super::Metric;
+
+pub fn collect_disk_metrics(system: &System, mount_points: &[String]) -> Result<Vec<Metric>> {
+    let mut metrics = Vec::new();
+    
+    for disk in system.disks() {
+        let mount_point = disk.mount_point().to_string_lossy().to_string();
+        
+        // 如果指定了监控的挂载点，则只监控指定的
+        if !mount_points.is_empty() && !mount_points.contains(&mount_point) {
+            continue;
+        }
+        
+        let mut labels = HashMap::new();
+        labels.insert("mount_point".to_string(), mount_point.clone());
+        labels.insert("file_system".to_string(), disk.file_system().to_string_lossy().to_string());
+        labels.insert("disk_name".to_string(), disk.name().to_string_lossy().to_string());
+        
+        let total_space = disk.total_space();
+        let available_space = disk.available_space();
+        let used_space = total_space - available_space;
+        
+        let used_percent = if total_space > 0 {
+            (used_space as f64 / total_space as f64) * 100.0
+        } else {
+            0.0
+        };
+        
+        // 磁盘使用详情
+        let mut disk_details = serde_json::Map::new();
+        disk_details.insert("total_bytes".to_string(), Value::Number(serde_json::Number::from(total_space)));
+        disk_details.insert("used_bytes".to_string(), Value::Number(serde_json::Number::from(used_space)));
+        disk_details.insert("available_bytes".to_string(), Value::Number(serde_json::Number::from(available_space)));
+        disk_details.insert("used_percent".to_string(), Value::Number(serde_json::Number::from_f64(used_percent).unwrap()));
+        disk_details.insert("mount_point".to_string(), Value::String(mount_point.clone()));
+        disk_details.insert("file_system".to_string(), Value::String(disk.file_system().to_string_lossy().to_string()));
+        
+        metrics.push(Metric::new(
+            "disk_usage".to_string(),
+            "disk_usage".to_string(),
+            Value::Object(disk_details),
+            labels.clone(),
+            None,
+        ));
+        
+        // 单独的磁盘指标
+        metrics.push(Metric::new(
+            "disk_total_bytes".to_string(),
+            "disk_total".to_string(),
+            Value::Number(serde_json::Number::from(total_space)),
+            labels.clone(),
+            Some("bytes".to_string()),
+        ));
+        
+        metrics.push(Metric::new(
+            "disk_used_bytes".to_string(),
+            "disk_used".to_string(),
+            Value::Number(serde_json::Number::from(used_space)),
+            labels.clone(),
+            Some("bytes".to_string()),
+        ));
+        
+        metrics.push(Metric::new(
+            "disk_used_percent".to_string(),
+            "disk_used_percent".to_string(),
+            Value::Number(serde_json::Number::from_f64(used_percent).unwrap()),
+            labels.clone(),
+            Some("percent".to_string()),
+        ));
+        
+        metrics.push(Metric::new(
+            "disk_available_bytes".to_string(),
+            "disk_available".to_string(),
+            Value::Number(serde_json::Number::from(available_space)),
+            labels,
+            Some("bytes".to_string()),
+        ));
+    }
+    
+    Ok(metrics)
+}
