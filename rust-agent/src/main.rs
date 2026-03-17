@@ -101,7 +101,7 @@ async fn start_monitoring(
     std::fs::create_dir_all(&output_dir)?;
     
     // 初始化采集器和导出器
-    let collector = MetricsCollector::new(config.clone());
+    let mut collector = MetricsCollector::new(config.clone());
     let exporter = Exporter::new(output_dir, format);
     
     info!("开始监控，采集间隔: {}秒", interval);
@@ -147,7 +147,7 @@ async fn start_monitoring(
 }
 
 async fn show_system_info() -> Result<()> {
-    let collector = MetricsCollector::new(AgentConfig::default());
+    let mut collector = MetricsCollector::new(AgentConfig::default());
     let metrics = collector.collect_all().await?;
     
     println!("🖥️  系统信息概览");

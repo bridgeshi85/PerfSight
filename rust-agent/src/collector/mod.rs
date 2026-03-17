@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use sysinfo::{System, SystemExt, CpuExt, DiskExt, NetworkExt, ProcessExt};
+use sysinfo::System;
 
 use crate::config::AgentConfig;
 
@@ -101,24 +101,24 @@ impl MetricsCollector {
         let mut labels = HashMap::new();
         
         // 主机名
-        if let Some(hostname) = self.system.host_name() {
+        if let Some(hostname) = System::host_name(&self.system) {
             labels.insert("hostname".to_string(), hostname);
         }
         
         let mut system_info = serde_json::Map::new();
-        system_info.insert("hostname".to_string(), 
-            Value::String(self.system.host_name().unwrap_or_else(|| "unknown".to_string())));
-        system_info.insert("os_name".to_string(), 
-            Value::String(self.system.name().unwrap_or_else(|| "unknown".to_string())));
-        system_info.insert("os_version".to_string(), 
-            Value::String(self.system.os_version().unwrap_or_else(|| "unknown".to_string())));
-        system_info.insert("kernel_version".to_string(), 
-            Value::String(self.system.kernel_version().unwrap_or_else(|| "unknown".to_string())));
-        system_info.insert("architecture".to_string(), 
+        system_info.insert("hostname".to_string(),
+            Value::String(System::host_name(&self.system).unwrap_or_else(|| "unknown".to_string())));
+        system_info.insert("os_name".to_string(),
+            Value::String(System::name(&self.system).unwrap_or_else(|| "unknown".to_string())));
+        system_info.insert("os_version".to_string(),
+            Value::String(System::os_version(&self.system).unwrap_or_else(|| "unknown".to_string())));
+        system_info.insert("kernel_version".to_string(),
+            Value::String(System::kernel_version(&self.system).unwrap_or_else(|| "unknown".to_string())));
+        system_info.insert("architecture".to_string(),
             Value::String(std::env::consts::ARCH.to_string()));
-        system_info.insert("cpu_count".to_string(), 
+        system_info.insert("cpu_count".to_string(),
             Value::Number(serde_json::Number::from(self.system.cpus().len())));
-        system_info.insert("total_memory".to_string(), 
+        system_info.insert("total_memory".to_string(),
             Value::Number(serde_json::Number::from(self.system.total_memory())));
         
         metrics.push(Metric::new(

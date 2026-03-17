@@ -1,15 +1,19 @@
 use anyhow::Result;
 use serde_json::Value;
 use std::collections::HashMap;
-use sysinfo::{System, SystemExt, DiskExt};
+use sysinfo::{Disk, Disks, System};
+
 
 use super::Metric;
 
 pub fn collect_disk_metrics(system: &System, mount_points: &[String]) -> Result<Vec<Metric>> {
     let mut metrics = Vec::new();
+
+    // 初始化并获取最新的磁盘列表
+    let disks = Disks::new_with_refreshed_list();
     
-    for disk in system.disks() {
-        let mount_point = disk.mount_point().to_string_lossy().to_string();
+    for disk in disks.list() {
+        let mount_point = Disk::mount_point(&disk).to_string_lossy().to_string();
         
         // 如果指定了监控的挂载点，则只监控指定的
         if !mount_points.is_empty() && !mount_points.contains(&mount_point) {
@@ -18,8 +22,8 @@ pub fn collect_disk_metrics(system: &System, mount_points: &[String]) -> Result<
         
         let mut labels = HashMap::new();
         labels.insert("mount_point".to_string(), mount_point.clone());
-        labels.insert("file_system".to_string(), disk.file_system().to_string_lossy().to_string());
-        labels.insert("disk_name".to_string(), disk.name().to_string_lossy().to_string());
+        labels.insert("file_system".to_string(), Disk::file_system(&disk).to_string_lossy().to_string());
+        labels.insert("disk_name".to_string(), Disk::name(&disk).to_string_lossy().to_string());
         
         let total_space = disk.total_space();
         let available_space = disk.available_space();
@@ -38,7 +42,7 @@ pub fn collect_disk_metrics(system: &System, mount_points: &[String]) -> Result<
         disk_details.insert("available_bytes".to_string(), Value::Number(serde_json::Number::from(available_space)));
         disk_details.insert("used_percent".to_string(), Value::Number(serde_json::Number::from_f64(used_percent).unwrap()));
         disk_details.insert("mount_point".to_string(), Value::String(mount_point.clone()));
-        disk_details.insert("file_system".to_string(), Value::String(disk.file_system().to_string_lossy().to_string()));
+        disk_details.insert("file_system".to_string(), Value::String(Disk::file_system(&disk).to_string_lossy().to_string()));
         
         metrics.push(Metric::new(
             "disk_usage".to_string(),

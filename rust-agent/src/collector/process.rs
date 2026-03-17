@@ -1,8 +1,7 @@
 use anyhow::Result;
 use serde_json::Value;
 use std::collections::HashMap;
-use sysinfo::{System, SystemExt, ProcessExt, Pid};
-
+use sysinfo::{Pid, System};
 use super::Metric;
 
 pub fn collect_process_metrics(system: &System) -> Result<Vec<Metric>> {
