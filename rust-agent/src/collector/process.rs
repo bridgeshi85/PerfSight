@@ -26,12 +26,12 @@ pub fn collect_process_metrics(system: &System) -> Result<Vec<Metric>> {
     for (i, (pid, process)) in processes.iter().take(10).enumerate() {
         let mut labels = HashMap::new();
         labels.insert("pid".to_string(), pid.to_string());
-        labels.insert("name".to_string(), process.name().to_string());
+        labels.insert("name".to_string(), process.name().to_string_lossy().to_string());
         labels.insert("rank".to_string(), (i + 1).to_string());
         
         let mut process_details = serde_json::Map::new();
         process_details.insert("pid".to_string(), Value::Number(serde_json::Number::from(pid.as_u32())));
-        process_details.insert("name".to_string(), Value::String(process.name().to_string()));
+        process_details.insert("name".to_string(), Value::String(process.name().to_string_lossy().to_string()));
         process_details.insert("cpu_usage".to_string(), Value::Number(serde_json::Number::from_f64(process.cpu_usage() as f64).unwrap()));
         process_details.insert("memory_bytes".to_string(), Value::Number(serde_json::Number::from(process.memory())));
         process_details.insert("virtual_memory_bytes".to_string(), Value::Number(serde_json::Number::from(process.virtual_memory())));
@@ -58,7 +58,7 @@ pub fn collect_process_metrics(system: &System) -> Result<Vec<Metric>> {
     for (i, (pid, process)) in processes.iter().take(10).enumerate() {
         let mut labels = HashMap::new();
         labels.insert("pid".to_string(), pid.to_string());
-        labels.insert("name".to_string(), process.name().to_string());
+        labels.insert("name".to_string(), process.name().to_string_lossy().to_string());
         labels.insert("rank".to_string(), (i + 1).to_string());
         
         metrics.push(Metric::new(

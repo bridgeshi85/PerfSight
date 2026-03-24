@@ -1,14 +1,15 @@
 use anyhow::Result;
 use serde_json::Value;
 use std::collections::HashMap;
-use sysinfo::{NetworkData, System};
+use sysinfo::{NetworkData, System, Networks};
 
 use super::Metric;
 
 pub fn collect_network_metrics(system: &System, interfaces: &[String]) -> Result<Vec<Metric>> {
     let mut metrics = Vec::new();
-    
-    for (interface_name, data) in System::networks(system) {
+    let networks = Networks::new_with_refreshed_list();
+
+    for (interface_name, data) in &networks {
         // 如果指定了监控的网络接口，则只监控指定的
         if !interfaces.is_empty() && !interfaces.contains(interface_name) {
             continue;
