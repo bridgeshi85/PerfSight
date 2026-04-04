@@ -1,11 +1,11 @@
 use anyhow::Result;
 use serde_json::Value;
 use std::collections::HashMap;
-use sysinfo::{NetworkData, System, Networks};
+use sysinfo::{NetworkData, Networks};
 
 use super::Metric;
 
-pub fn collect_network_metrics(system: &System, interfaces: &[String]) -> Result<Vec<Metric>> {
+pub fn collect_network_metrics(interfaces: &[String]) -> Result<Vec<Metric>> {
     let mut metrics = Vec::new();
     let networks = Networks::new_with_refreshed_list();
 
@@ -24,9 +24,7 @@ pub fn collect_network_metrics(system: &System, interfaces: &[String]) -> Result
         network_details.insert("transmitted_bytes".to_string(), Value::Number(serde_json::Number::from(NetworkData::transmitted(data))));
         network_details.insert("packets_received".to_string(), Value::Number(serde_json::Number::from(NetworkData::packets_received(data))));
         network_details.insert("packets_transmitted".to_string(), Value::Number(serde_json::Number::from(NetworkData::packets_transmitted(data))));
-        network_details.insert("errors_on_received".to_string(), Value::Number(serde_json::Number::from(NetworkData::errors_on_received(data))));
-        network_details.insert("errors_on_transmitted".to_string(), Value::Number(serde_json::Number::from(NetworkData::errors_on_transmitted(data))));
-        
+
         metrics.push(Metric::new(
             "network_interface".to_string(),
             "network_interface".to_string(),

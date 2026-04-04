@@ -3,8 +3,9 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-
+use tokio::io::AsyncWriteExt;
 use crate::collector::Metric;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -35,13 +36,28 @@ impl std::fmt::Display for ExportFormat {
 }
 
 pub struct Exporter {
-    output_dir: PathBuf,
     format: ExportFormat,
+    filepath: PathBuf,
+    is_first_write: AtomicBool,
 }
 
 impl Exporter {
     pub fn new(output_dir: PathBuf, format: ExportFormat) -> Self {
-        Self { output_dir, format }
+        let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
+        let ext = match format {
+            ExportFormat::Json => "jsonl",
+            ExportFormat::Csv => "csv",
+        };
+        let filename = format!("perfsight_run_{}.{}", timestamp, ext);
+        let filepath = output_dir.join(filename);
+
+        log::info!("压测数据将流式写入文件: {:?}", filepath);
+
+        Self {
+            format,
+            filepath,
+            is_first_write: AtomicBool::new(true)
+        }
     }
     
     pub async fn export(&self, metrics: &[Metric]) -> Result<()> {
@@ -52,86 +68,57 @@ impl Exporter {
     }
     
     async fn export_json(&self, metrics: &[Metric]) -> Result<()> {
-        let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
-        let filename = format!("perfsight_metrics_{}.json", timestamp);
-        let filepath = self.output_dir.join(filename);
-        
-        let json_data = serde_json::to_string_pretty(metrics)?;
-        tokio::fs::write(&filepath, json_data).await?;
-        
-        log::info!("指标已导出到: {:?}", filepath);
+        let mut file = tokio::fs::OpenOptions::new().
+            create(true).append(true).open(&self.filepath).await?;
+
+        let mut buffer = String::with_capacity(metrics.len() * 256); // 预分配内存，提升速度
+        for metric in metrics {
+            let json_line = serde_json::to_string(metric)?; // 转为紧凑的单行
+            buffer.push_str(&json_line);
+            buffer.push('\n'); // 追加换行符
+        }
+
+        file.write_all(buffer.as_bytes()).await?;
+        log::debug!("追加了 {} 条指标到 JSONL", metrics.len());
         Ok(())
     }
     
     async fn export_csv(&self, metrics: &[Metric]) -> Result<()> {
-        let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
-        let filename = format!("perfsight_metrics_{}.csv", timestamp);
-        let filepath = self.output_dir.join(filename);
-        
-        let mut wtr = csv::Writer::from_path(&filepath)?;
-        
-        // 写入 CSV 头部
-        wtr.write_record(&[
-            "timestamp",
-            "name", 
-            "metric_type",
-            "value",
-            "labels",
-            "unit"
-        ])?;
-        
+        let mut file = tokio::fs::OpenOptions::new().
+            append(true).create(true).open(&self.filepath).await?;
+        let mut buffer = String::with_capacity(metrics.len() * 256);
+
+        // 写入header后会自动swap成false
+        if self.is_first_write.swap(false, Ordering::SeqCst) {
+            buffer.push_str("timestamp,name,metric_type,value,labels,unit\n");
+        }
+
         // 写入数据行
         for metric in metrics {
-            let labels_str = serde_json::to_string(&metric.labels)?;
+            let labels_str = serde_json::to_string(&metric.labels)?.replace("\"", "\"\"");
             let value_str = match &metric.value {
                 serde_json::Value::Number(n) => n.to_string(),
                 serde_json::Value::String(s) => s.clone(),
                 serde_json::Value::Bool(b) => b.to_string(),
                 other => serde_json::to_string(other)?,
             };
-            
-            wtr.write_record(&[
+
+            let line = format!(
+                "{},\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"\n",
                 metric.timestamp.to_rfc3339(),
-                metric.name.clone(),
-                metric.metric_type.clone(),
+                metric.name,
+                metric.metric_type,
                 value_str,
                 labels_str,
-                metric.unit.clone().unwrap_or_else(|| "".to_string()),
-            ])?;
+                metric.unit.as_deref().unwrap_or("")
+            );
+            
+            buffer.push_str(&line);
         }
-        
-        wtr.flush()?;
-        log::info!("指标已导出到: {:?}", filepath);
-        Ok(())
-    }
-    
-    /// 清理过期的数据文件
-    pub async fn cleanup_old_files(&self, retention_days: u32) -> Result<()> {
-        let cutoff_time = Utc::now() - chrono::Duration::days(retention_days as i64);
-        
-        let mut entries = tokio::fs::read_dir(&self.output_dir).await?;
-        while let Some(entry) = entries.next_entry().await? {
-            let path = entry.path();
-            if let Some(filename) = path.file_name() {
-                if let Some(filename_str) = filename.to_str() {
-                    if filename_str.starts_with("perfsight_metrics_") {
-                        if let Ok(metadata) = entry.metadata().await {
-                            if let Ok(created) = metadata.created() {
-                                let created_time = chrono::DateTime::<Utc>::from(created);
-                                if created_time < cutoff_time {
-                                    if let Err(e) = tokio::fs::remove_file(&path).await {
-                                        log::warn!("删除过期文件失败 {:?}: {}", path, e);
-                                    } else {
-                                        log::info!("已删除过期文件: {:?}", path);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
+
+        file.write_all(buffer.as_bytes()).await?;
+
+        log::debug!("追加了 {} 条指标到 CSV", metrics.len());
         Ok(())
     }
 }

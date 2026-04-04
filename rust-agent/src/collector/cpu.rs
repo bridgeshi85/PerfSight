@@ -18,35 +18,6 @@ pub fn collect_cpu_metrics(system: &System) -> Result<Vec<Metric>> {
         Some("percent".to_string()),
     ));
     
-    // 各个 CPU 核心的使用率
-    for (i, cpu) in sysinfo::System::cpus(system).iter().enumerate() {
-        let mut labels = HashMap::new();
-        labels.insert("cpu_core".to_string(), i.to_string());
-        labels.insert("cpu_name".to_string(), sysinfo::Cpu::name(cpu).to_string());
-        
-        metrics.push(Metric::new(
-            "cpu_core_usage_percent".to_string(),
-            "cpu_core_usage".to_string(),
-            Value::Number(serde_json::Number::from_f64(sysinfo::Cpu::cpu_usage(cpu) as f64).unwrap()),
-            labels,
-            Some("percent".to_string()),
-        ));
-    }
-    
-    // CPU 频率信息
-    for (i, cpu) in sysinfo::System::cpus(system).iter().enumerate() {
-        let mut labels = HashMap::new();
-        labels.insert("cpu_core".to_string(), i.to_string());
-        
-        metrics.push(Metric::new(
-            "cpu_frequency_mhz".to_string(),
-            "cpu_frequency".to_string(),
-            Value::Number(serde_json::Number::from(sysinfo::Cpu::frequency(cpu))),
-            labels,
-            Some("MHz".to_string()),
-        ));
-    }
-
     let load_avg = System::load_average();
     metrics.push(Metric::new(
         "load_average_1min".to_string(),

@@ -7,7 +7,7 @@ use super::Metric;
 
 pub fn collect_memory_metrics(system: &System) -> Result<Vec<Metric>> {
     let mut metrics = Vec::new();
-    
+
     let total_memory = System::total_memory(system);
     let used_memory = System::used_memory(system);
     let available_memory = System::available_memory(system);

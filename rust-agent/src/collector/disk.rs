@@ -1,12 +1,12 @@
 use anyhow::Result;
 use serde_json::Value;
 use std::collections::HashMap;
-use sysinfo::{Disk, Disks, System};
+use sysinfo::{Disk, Disks};
 
 
 use super::Metric;
 
-pub fn collect_disk_metrics(system: &System, mount_points: &[String]) -> Result<Vec<Metric>> {
+pub fn collect_disk_metrics(mount_points: &[String]) -> Result<Vec<Metric>> {
     let mut metrics = Vec::new();
 
     // 初始化并获取最新的磁盘列表
@@ -41,8 +41,6 @@ pub fn collect_disk_metrics(system: &System, mount_points: &[String]) -> Result<
         disk_details.insert("used_bytes".to_string(), Value::Number(serde_json::Number::from(used_space)));
         disk_details.insert("available_bytes".to_string(), Value::Number(serde_json::Number::from(available_space)));
         disk_details.insert("used_percent".to_string(), Value::Number(serde_json::Number::from_f64(used_percent).unwrap()));
-        disk_details.insert("mount_point".to_string(), Value::String(mount_point.clone()));
-        disk_details.insert("file_system".to_string(), Value::String(Disk::file_system(&disk).to_string_lossy().to_string()));
         
         metrics.push(Metric::new(
             "disk_usage".to_string(),
