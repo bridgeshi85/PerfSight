@@ -311,19 +311,6 @@ python -m pytest
 
 本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
-## 🙏 致谢
-
-- [sysinfo](https://github.com/GuillaumeGomez/sysinfo) - Rust 系统信息库
-- [pandas](https://pandas.pydata.org/) - Python 数据分析库
-- [matplotlib](https://matplotlib.org/) - Python 绘图库
-- [OpenAI](https://openai.com/) - AI 分析能力支持
-
-## 📞 联系我们
-
-- **项目主页**: https://github.com/your-org/perfsight
-- **问题反馈**: https://github.com/your-org/perfsight/issues
-- **讨论区**: https://github.com/your-org/perfsight/discussions
-
 ---
 
 ⭐ 如果这个项目对您有帮助，请给我们一个 Star！

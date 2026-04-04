@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use sysinfo::{System, SystemExt, CpuExt, DiskExt, NetworkExt, ProcessExt};
+use sysinfo::System;
 
 use crate::config::AgentConfig;
 
@@ -12,6 +12,7 @@ pub mod memory;
 pub mod disk;
 pub mod network;
 pub mod process;
+pub mod deep_cpu;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Metric {
@@ -51,6 +52,10 @@ impl Metric {
 pub struct MetricsCollector {
     config: AgentConfig,
     system: System,
+
+    // 🚀 条件编译：这个字段只有在 Linux 下编译时才会存在
+    #[cfg(target_os = "linux")]
+    deep_cpu: deep_cpu::DeepCpuCollector,
 }
 
 impl MetricsCollector {
@@ -58,7 +63,12 @@ impl MetricsCollector {
         let mut system = System::new_all();
         system.refresh_all();
         
-        Self { config, system }
+        Self {
+            config, system ,
+            // 🚀 条件编译：只有在 Linux 下才初始化这个实例
+            #[cfg(target_os = "linux")]
+            deep_cpu: deep_cpu::DeepCpuCollector::new(),
+        }
     }
     
     /// 采集所有启用的指标
@@ -67,9 +77,6 @@ impl MetricsCollector {
         
         // 刷新系统信息
         self.system.refresh_all();
-        
-        // 采集系统基本信息
-        metrics.extend(self.collect_system_info()?);
         
         // 根据配置采集各类指标
         if self.config.monitoring.enable_cpu {
@@ -101,24 +108,24 @@ impl MetricsCollector {
         let mut labels = HashMap::new();
         
         // 主机名
-        if let Some(hostname) = self.system.host_name() {
+        if let Some(hostname) = System::host_name() {
             labels.insert("hostname".to_string(), hostname);
         }
         
         let mut system_info = serde_json::Map::new();
-        system_info.insert("hostname".to_string(), 
-            Value::String(self.system.host_name().unwrap_or_else(|| "unknown".to_string())));
-        system_info.insert("os_name".to_string(), 
-            Value::String(self.system.name().unwrap_or_else(|| "unknown".to_string())));
-        system_info.insert("os_version".to_string(), 
-            Value::String(self.system.os_version().unwrap_or_else(|| "unknown".to_string())));
-        system_info.insert("kernel_version".to_string(), 
-            Value::String(self.system.kernel_version().unwrap_or_else(|| "unknown".to_string())));
-        system_info.insert("architecture".to_string(), 
+        system_info.insert("hostname".to_string(),
+            Value::String(System::host_name().unwrap_or_else(|| "unknown".to_string())));
+        system_info.insert("os_name".to_string(),
+            Value::String(System::name().unwrap_or_else(|| "unknown".to_string())));
+        system_info.insert("os_version".to_string(),
+            Value::String(System::os_version().unwrap_or_else(|| "unknown".to_string())));
+        system_info.insert("kernel_version".to_string(),
+            Value::String(System::kernel_version().unwrap_or_else(|| "unknown".to_string())));
+        system_info.insert("architecture".to_string(),
             Value::String(std::env::consts::ARCH.to_string()));
-        system_info.insert("cpu_count".to_string(), 
+        system_info.insert("cpu_count".to_string(),
             Value::Number(serde_json::Number::from(self.system.cpus().len())));
-        system_info.insert("total_memory".to_string(), 
+        system_info.insert("total_memory".to_string(),
             Value::Number(serde_json::Number::from(self.system.total_memory())));
         
         metrics.push(Metric::new(
@@ -134,7 +141,22 @@ impl MetricsCollector {
     
     /// 采集 CPU 指标
     fn collect_cpu_metrics(&self) -> Result<Vec<Metric>> {
-        cpu::collect_cpu_metrics(&self.system)
+        let mut metrics = Vec::new();
+
+        // 1. 所有平台 (Windows/Mac/Linux) 都会执行这行，获取基础 CPU 使用率和负载
+        metrics.extend(cpu::collect_cpu_metrics(&self.system)?);
+
+        // 2. 只有 Linux 平台会编译并执行下面这段代码，追加深度指标
+        #[cfg(target_os = "linux")]
+        {
+            // 如果 collect 失败，只是打印警告，不影响基础指标的返回
+            match self.deep_cpu.collect() {
+                Ok(deep_metrics) => metrics.extend(deep_metrics),
+                Err(e) => log::warn!("Linux深度CPU指标采集失败: {}", e),
+            }
+        }
+
+        Ok(metrics)
     }
     
     /// 采集内存指标
@@ -144,12 +166,12 @@ impl MetricsCollector {
     
     /// 采集磁盘指标
     fn collect_disk_metrics(&self) -> Result<Vec<Metric>> {
-        disk::collect_disk_metrics(&self.system, &self.config.monitoring.disk_mount_points)
+        disk::collect_disk_metrics(&self.config.monitoring.disk_mount_points)
     }
     
     /// 采集网络指标
     fn collect_network_metrics(&self) -> Result<Vec<Metric>> {
-        network::collect_network_metrics(&self.system, &self.config.monitoring.network_interfaces)
+        network::collect_network_metrics(&self.config.monitoring.network_interfaces)
     }
     
     /// 采集进程指标

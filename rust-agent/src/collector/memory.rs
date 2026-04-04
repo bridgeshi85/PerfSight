@@ -1,17 +1,17 @@
 use anyhow::Result;
 use serde_json::Value;
 use std::collections::HashMap;
-use sysinfo::{System, SystemExt};
+use sysinfo::System;
 
 use super::Metric;
 
 pub fn collect_memory_metrics(system: &System) -> Result<Vec<Metric>> {
     let mut metrics = Vec::new();
-    
-    let total_memory = system.total_memory();
-    let used_memory = system.used_memory();
-    let available_memory = system.available_memory();
-    let free_memory = system.free_memory();
+
+    let total_memory = System::total_memory(system);
+    let used_memory = System::used_memory(system);
+    let available_memory = System::available_memory(system);
+    let free_memory = System::free_memory(system);
     
     // 内存使用率
     let used_percent = if total_memory > 0 {
@@ -77,9 +77,9 @@ pub fn collect_memory_metrics(system: &System) -> Result<Vec<Metric>> {
     ));
     
     // Swap 内存信息
-    let total_swap = system.total_swap();
-    let used_swap = system.used_swap();
-    let free_swap = system.free_swap();
+    let total_swap = System::total_swap(system);
+    let used_swap = System::used_swap(system);
+    let free_swap = System::free_swap(system);
     
     if total_swap > 0 {
         let swap_used_percent = (used_swap as f64 / total_swap as f64) * 100.0;
