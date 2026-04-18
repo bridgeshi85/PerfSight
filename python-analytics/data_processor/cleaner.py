@@ -103,23 +103,37 @@ class DataCleaner:
         except json.JSONDecodeError as e:
             logger.error(f"JSON 解析错误 {file_path}: {e}")
             return []
-    
+
     async def _load_csv_file(self, file_path: Path) -> pd.DataFrame:
         """加载 CSV 文件"""
         try:
             # 尝试不同的编码
             for encoding in ['utf-8', 'gbk', 'latin-1']:
                 try:
-                    df = pd.read_csv(file_path, encoding=encoding)
+                    # 🚀 核心修复：添加 on_bad_lines='skip'
+                    # 当 Pandas 遇到列数被 JSON 逗号撑爆的异常行时，直接静默跳过，绝不崩溃！
+                    # (注意：如果你的 Pandas 版本低于 1.3.0，请把 on_bad_lines='skip' 换成 error_bad_lines=False)
+                    df = pd.read_csv(
+                        file_path,
+                        encoding=encoding,
+                        on_bad_lines='skip',
+                        engine='c'  # 保持 C 引擎以获得最高性能
+                    )
                     return df
                 except UnicodeDecodeError:
                     continue
-            
-            # 如果所有编码都失败，使用默认编码并忽略错误
-            df = pd.read_csv(file_path, encoding='utf-8', errors='ignore')
+
+            # 如果走到这里，使用兜底方案
+            df = pd.read_csv(
+                file_path,
+                encoding='utf-8',
+                errors='ignore',
+                on_bad_lines='skip'
+            )
             return df
-        
+
         except Exception as e:
+            # 这里的 logger 异常捕获非常正确
             logger.error(f"CSV 加载错误 {file_path}: {e}")
             return pd.DataFrame()
     

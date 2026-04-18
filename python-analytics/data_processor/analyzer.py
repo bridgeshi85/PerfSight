@@ -63,6 +63,7 @@ class DataAnalyzer:
             stats_result['metric_types'] = type_counts.to_dict()
         
         # 数值列统计
+        # Todo - 只根据type进行统计是不合理的，因为type中会有不同的name每个name不能被一起计算
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         for col in numeric_cols:
             if col in df.columns:
