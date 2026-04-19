@@ -45,8 +45,6 @@ class DataAnalyzer:
         stats_result = {
             'total_records': len(df),
             'time_range': {},
-            'metric_types': {},
-            'numeric_stats': {}
         }
         
         # 时间范围分析
@@ -57,25 +55,10 @@ class DataAnalyzer:
                 'duration_hours': (df['timestamp'].max() - df['timestamp'].min()).total_seconds() / 3600
             }
         
-        # 指标类型分布
-        if 'metric_type' in df.columns:
-            type_counts = df['metric_type'].value_counts()
-            stats_result['metric_types'] = type_counts.to_dict()
-        
-        # 数值列统计
-        # Todo - 只根据type进行统计是不合理的，因为type中会有不同的name每个name不能被一起计算
-        numeric_cols = df.select_dtypes(include=[np.number]).columns
-        for col in numeric_cols:
-            if col in df.columns:
-                stats_result['numeric_stats'][col] = {
-                    'mean': float(df[col].mean()),
-                    'median': float(df[col].median()),
-                    'std': float(df[col].std()),
-                    'min': float(df[col].min()),
-                    'max': float(df[col].max()),
-                    'q25': float(df[col].quantile(0.25)),
-                    'q75': float(df[col].quantile(0.75))
-                }
+        # 根据指标名称分类
+        if 'name' in df.columns:
+            metrics_count = df['name'].value_counts()
+            stats_result['name'] = metrics_count.to_dict()
         
         return stats_result
     

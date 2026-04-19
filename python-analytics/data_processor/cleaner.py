@@ -111,8 +111,7 @@ class DataCleaner:
             for encoding in ['utf-8', 'gbk', 'latin-1']:
                 try:
                     # 🚀 核心修复：添加 on_bad_lines='skip'
-                    # 当 Pandas 遇到列数被 JSON 逗号撑爆的异常行时，直接静默跳过，绝不崩溃！
-                    # (注意：如果你的 Pandas 版本低于 1.3.0，请把 on_bad_lines='skip' 换成 error_bad_lines=False)
+                    # 当 Pandas 遇到列数被 JSON 逗号撑爆的异常行时，直接静默跳过
                     df = pd.read_csv(
                         file_path,
                         encoding=encoding,

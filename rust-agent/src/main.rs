@@ -175,10 +175,10 @@ async fn show_system_info() -> Result<()> {
                     println!("CPU 使用率: {:.2}%", usage);
                 }
             }
-            "memory_usage" => {
-                if let Some(value) = metric.value.as_object() {
-                    if let Some(used_percent) = value.get("used_percent") {
-                        println!("内存使用率: {:.2}%", used_percent.as_f64().unwrap_or(0.0));
+            "memory" => {
+                if metric.name == "memory_used_percent" {
+                    if let Some(used_percent) = metric.value.as_f64() {
+                        println!("内存使用率: {:.2}%", used_percent);
                     }
                 }
             }
