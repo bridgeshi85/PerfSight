@@ -15,11 +15,11 @@ from rich.console import Console
 from rich.logging import RichHandler
 
 from config.settings import AnalyticsConfig
-from data_processor.analyzer import DataAnalyzer
 from data_processor.cleaner import DataCleaner
 from data_processor.visualizer import DataVisualizer
 from ai_diagnosis.analyzer import AIAnalyzer
 from report_generator.report_builder import ReportBuilder
+from data_processor.metrics_processor import MetricsProcessor
 
 # 设置日志
 logging.basicConfig(
@@ -94,10 +94,10 @@ async def _analyze_async(config: AnalyticsConfig, input_dir: str,
 
         # 2. 数据分析
         console.print("\n📊 [bold yellow]步骤 2: 数据分析[/bold yellow]")
-        analyzer = DataAnalyzer(config)
-        analysis_results = await analyzer.analyze(cleaned_data)
+        processor = MetricsProcessor(config)
+        analysis_results = await processor.process(cleaned_data)
 
-        console.print(f"✅ 分析完成，生成 {len(analysis_results)} 个分析结果")
+        console.print(f"✅ 分析完成 ")
 
         # 3. 数据可视化
         console.print("\n📈 [bold yellow]步骤 3: 数据可视化[/bold yellow]")
@@ -171,8 +171,8 @@ async def _visualize_async(config: AnalyticsConfig, input_file: str, output_dir:
             return
 
         # 数据分析
-        analyzer = DataAnalyzer(config)
-        analysis_results = await analyzer.analyze(cleaned_data)
+        processor = MetricsProcessor(config)
+        analysis_results = await processor.process(cleaned_data)
 
         # 生成图表
         visualizer = DataVisualizer(config)
