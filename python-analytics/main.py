@@ -106,7 +106,7 @@ async def _analyze_async(config: AnalyticsConfig, input_dir: str,
 
         console.print(f"✅ 可视化完成，生成 {len(charts)} 个图表")
 
-        # 4. AI 智能分析（可选）
+        # 4. AI智能分析
         ai_insights = None
         if ai_analysis:
             console.print("\n🧠 [bold yellow]步骤 4: AI 智能分析[/bold yellow]")
@@ -123,17 +123,10 @@ async def _analyze_async(config: AnalyticsConfig, input_dir: str,
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        if format in ['html', 'both']:
-            html_path = await report_builder.generate_html_report(
-                cleaned_data, analysis_results, charts, ai_insights, output_path
-            )
-            console.print(f"✅ HTML 报告: {html_path}")
-
-        if format in ['pdf', 'both']:
-            pdf_path = await report_builder.generate_pdf_report(
-                cleaned_data, analysis_results, charts, ai_insights, output_path
-            )
-            console.print(f"✅ PDF 报告: {pdf_path}")
+        html_path = await report_builder.generate_html_report(
+            analysis_results, charts, ai_insights, output_path
+        )
+        console.print(f"✅ HTML 报告: {html_path}")
 
         console.print("\n🎉 [bold green]分析完成！[/bold green]")
 

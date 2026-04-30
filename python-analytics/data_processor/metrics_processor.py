@@ -39,13 +39,12 @@ class MetricsProcessor:
             'categories': {}
         }
 
-        # 2. 路由分发 (Routing & Dispatching)
+        # 根据指标类型分发给不同的analyzers进行处理
         if 'metric_type' in df.columns:
             for m_type in df['metric_type'].unique():
                 if m_type in self.analyzers:
                     # 将属于该类别的数据切片
                     type_df = df[df['metric_type'] == m_type].copy()
-                    # ⚠️ 注意：如果具体的 Analyzer 里没有用 async def，这里不需要 await
                     results['categories'][m_type] = self.analyzers[m_type].analyze(type_df)
                 else:
                     logger.debug(f"未找到针对 '{m_type}' 类型的专属分析器，已跳过。")

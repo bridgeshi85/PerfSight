@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, Any
 import pandas as pd
-from .base_analyzer import BaseMetricAnalyzer
+from analyzers.base_analyzer import BaseMetricAnalyzer
 
 logger = logging.getLogger(__name__)
 
