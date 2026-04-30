@@ -100,7 +100,13 @@ impl Exporter {
                 serde_json::Value::Number(n) => n.to_string(),
                 serde_json::Value::String(s) => s.clone(),
                 serde_json::Value::Bool(b) => b.to_string(),
-                other => serde_json::to_string(other)?,
+                serde_json::Value::Object(o) => {
+                    let val_str = serde_json::to_string(&o)?;
+                    val_str.replace("\"", "\"\"")
+                }
+                other => {
+                    serde_json::to_string(other)?.replace("\"", "\"\"")
+                },
             };
 
             let line = format!(

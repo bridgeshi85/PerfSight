@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use sysinfo::System;
-
+use crate::collector::network::NetworkCollector;
 use crate::config::AgentConfig;
 
 pub mod cpu;
@@ -52,6 +52,7 @@ impl Metric {
 pub struct MetricsCollector {
     config: AgentConfig,
     system: System,
+    network_collector: NetworkCollector,
 
     // 🚀 条件编译：这个字段只有在 Linux 下编译时才会存在
     #[cfg(target_os = "linux")]
@@ -62,9 +63,11 @@ impl MetricsCollector {
     pub fn new(config: AgentConfig) -> Self {
         let mut system = System::new_all();
         system.refresh_all();
+        let interfaces = config.monitoring.network_interfaces.clone();
         
         Self {
             config, system ,
+            network_collector: NetworkCollector::new(interfaces),
             // 🚀 条件编译：只有在 Linux 下才初始化这个实例
             #[cfg(target_os = "linux")]
             deep_cpu: deep_cpu::DeepCpuCollector::new(),
@@ -170,8 +173,8 @@ impl MetricsCollector {
     }
     
     /// 采集网络指标
-    fn collect_network_metrics(&self) -> Result<Vec<Metric>> {
-        network::collect_network_metrics(&self.config.monitoring.network_interfaces)
+    fn collect_network_metrics(&mut self) -> Result<Vec<Metric>> {
+        self.network_collector.collect()
     }
     
     /// 采集进程指标

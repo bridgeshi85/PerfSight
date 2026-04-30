@@ -5,51 +5,82 @@ use sysinfo::{NetworkData, Networks};
 
 use super::Metric;
 
-pub fn collect_network_metrics(interfaces: &[String]) -> Result<Vec<Metric>> {
-    let mut metrics = Vec::new();
-    let networks = Networks::new_with_refreshed_list();
+// 定义一个带有状态的收集器结构体
+pub struct NetworkCollector {
+    networks: Networks,
+    target_interfaces: Vec<String>,
+}
 
-    for (interface_name, data) in &networks {
-        // 如果指定了监控的网络接口，则只监控指定的
-        if !interfaces.is_empty() && !interfaces.contains(interface_name) {
-            continue;
+impl NetworkCollector {
+    pub fn new(target_interfaces: Vec<String>) -> Self {
+        log::info!("Initializing NetworkCollector for interfaces: {:?}", target_interfaces);
+        Self {
+            networks: Networks::new_with_refreshed_list(),
+            target_interfaces,
         }
-        
-        let mut labels = HashMap::new();
-        labels.insert("interface".to_string(), interface_name.to_string());
-        
-        // 网络接口详情
-        let mut network_details = serde_json::Map::new();
-        network_details.insert("received_bytes".to_string(), Value::Number(serde_json::Number::from(NetworkData::received(data))));
-        network_details.insert("transmitted_bytes".to_string(), Value::Number(serde_json::Number::from(NetworkData::transmitted(data))));
-        network_details.insert("packets_received".to_string(), Value::Number(serde_json::Number::from(NetworkData::packets_received(data))));
-        network_details.insert("packets_transmitted".to_string(), Value::Number(serde_json::Number::from(NetworkData::packets_transmitted(data))));
-
-        metrics.push(Metric::new(
-            "network_interface".to_string(),
-            "network_interface".to_string(),
-            Value::Object(network_details),
-            labels.clone(),
-            None,
-        ));
-        
-        // 单独的网络指标
-        metrics.push(Metric::new(
-            "network_received_bytes".to_string(),
-            "network_received".to_string(),
-            Value::Number(serde_json::Number::from(NetworkData::received(data))),
-            labels.clone(),
-            Some("bytes".to_string()),
-        ));
-        
-        metrics.push(Metric::new(
-            "network_transmitted_bytes".to_string(),
-            "network_transmitted".to_string(),
-            Value::Number(serde_json::Number::from(NetworkData::transmitted(data))),
-            labels,
-            Some("bytes".to_string()),
-        ));
     }
-    
-    Ok(metrics)
+
+    pub fn collect(&mut self) -> Result<Vec<Metric>> {
+
+        let mut metrics = Vec::new();
+        self.networks.refresh(true);
+
+        log::debug!("Collecting network metrics for interfaces: {:?}", self.target_interfaces);
+
+        for (interface_name, data) in &self.networks {
+            // 如果指定了监控的网络接口，则只监控指定的
+            if !self.target_interfaces.is_empty() && !self.target_interfaces.contains(interface_name) {
+                continue;
+            }
+
+            let mut labels = HashMap::new();
+            labels.insert("interface".to_string(), interface_name.to_string());
+
+            // 先把数据提取出来，方便日志打印
+            let rx_bytes = NetworkData::received(data);
+            let tx_bytes = NetworkData::transmitted(data);
+            let rx_packets = NetworkData::packets_received(data);
+            let tx_packets = NetworkData::packets_transmitted(data);
+
+            // 扁平化网络指标
+            metrics.push(Metric::new(
+                "network_received_bytes".to_string(),
+                "network".to_string(),
+                Value::Number(serde_json::Number::from(rx_bytes)),
+                labels.clone(),
+                Some("bytes".to_string()),
+            ));
+
+            metrics.push(Metric::new(
+                "network_transmitted_bytes".to_string(),
+                "network".to_string(),
+                Value::Number(serde_json::Number::from(tx_bytes)),
+                labels.clone(),
+                Some("bytes".to_string()),
+            ));
+
+            metrics.push(Metric::new(
+                "network_received_packets".to_string(),
+                "network".to_string(),
+                Value::Number(serde_json::Number::from(rx_packets)),
+                labels.clone(),
+                Some("count".to_string()),
+            ));
+
+            metrics.push(Metric::new(
+                "network_transmitted_packets".to_string(),
+                "network".to_string(),
+                Value::Number(serde_json::Number::from(tx_packets)),
+                labels,
+                Some("count".to_string()),
+            ));
+
+            log::debug!(
+            "✅ 成功采集收集指标: [{:?}]",
+            metrics
+        );
+        }
+
+        Ok(metrics)
+    }
 }

@@ -44,7 +44,7 @@ pub fn collect_disk_metrics(mount_points: &[String]) -> Result<Vec<Metric>> {
         
         metrics.push(Metric::new(
             "disk_usage".to_string(),
-            "disk_usage".to_string(),
+            "disk".to_string(),
             Value::Object(disk_details),
             labels.clone(),
             None,
@@ -53,7 +53,7 @@ pub fn collect_disk_metrics(mount_points: &[String]) -> Result<Vec<Metric>> {
         // 单独的磁盘指标
         metrics.push(Metric::new(
             "disk_total_bytes".to_string(),
-            "disk_total".to_string(),
+            "disk".to_string(),
             Value::Number(serde_json::Number::from(total_space)),
             labels.clone(),
             Some("bytes".to_string()),
@@ -61,7 +61,7 @@ pub fn collect_disk_metrics(mount_points: &[String]) -> Result<Vec<Metric>> {
         
         metrics.push(Metric::new(
             "disk_used_bytes".to_string(),
-            "disk_used".to_string(),
+            "disk".to_string(),
             Value::Number(serde_json::Number::from(used_space)),
             labels.clone(),
             Some("bytes".to_string()),
@@ -69,7 +69,7 @@ pub fn collect_disk_metrics(mount_points: &[String]) -> Result<Vec<Metric>> {
         
         metrics.push(Metric::new(
             "disk_used_percent".to_string(),
-            "disk_used_percent".to_string(),
+            "disk".to_string(),
             Value::Number(serde_json::Number::from_f64(used_percent).unwrap()),
             labels.clone(),
             Some("percent".to_string()),
@@ -77,7 +77,7 @@ pub fn collect_disk_metrics(mount_points: &[String]) -> Result<Vec<Metric>> {
         
         metrics.push(Metric::new(
             "disk_available_bytes".to_string(),
-            "disk_available".to_string(),
+            "disk".to_string(),
             Value::Number(serde_json::Number::from(available_space)),
             labels,
             Some("bytes".to_string()),
