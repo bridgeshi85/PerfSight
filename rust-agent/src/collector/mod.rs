@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use sysinfo::System;
+use crate::collector::disk::DiskCollector;
 use crate::collector::network::NetworkCollector;
 use crate::config::AgentConfig;
 
@@ -53,6 +54,7 @@ pub struct MetricsCollector {
     config: AgentConfig,
     system: System,
     network_collector: NetworkCollector,
+    disk_collector: DiskCollector,
 
     // 🚀 条件编译：这个字段只有在 Linux 下编译时才会存在
     #[cfg(target_os = "linux")]
@@ -64,10 +66,12 @@ impl MetricsCollector {
         let mut system = System::new_all();
         system.refresh_all();
         let interfaces = config.monitoring.network_interfaces.clone();
+        let disks = config.monitoring.disk_mount_points.clone();
         
         Self {
             config, system ,
             network_collector: NetworkCollector::new(interfaces),
+            disk_collector: DiskCollector::new(disks),
             // 🚀 条件编译：只有在 Linux 下才初始化这个实例
             #[cfg(target_os = "linux")]
             deep_cpu: deep_cpu::DeepCpuCollector::new(),
@@ -168,8 +172,8 @@ impl MetricsCollector {
     }
     
     /// 采集磁盘指标
-    fn collect_disk_metrics(&self) -> Result<Vec<Metric>> {
-        disk::collect_disk_metrics(&self.config.monitoring.disk_mount_points)
+    fn collect_disk_metrics(&mut self) -> Result<Vec<Metric>> {
+        self.disk_collector.collect()
     }
     
     /// 采集网络指标
