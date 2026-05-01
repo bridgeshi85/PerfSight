@@ -47,6 +47,11 @@ class DataVisualizer:
             net_charts = await self._create_network_dashboards(df, val_col)
             charts.update(net_charts)
 
+        # 4. 绘制 Disk I/O 相关图表
+        if getattr(self.viz_config, 'enable_disk_chart', True):
+            disk_charts = await self._create_disk_dashboards(df, val_col)
+            charts.update(disk_charts)
+
         logger.info(f"图表生成完成，共 {len(charts)} 个可视化面板")
         return charts
 
@@ -214,3 +219,64 @@ class DataVisualizer:
         fig.update_xaxes(type="date", title_text="真实时间")
 
         return {'network_dashboard': {'figure': fig, 'type': 'plotly_html'}}
+
+    async def _create_disk_dashboards(self, df: pd.DataFrame, val_col: str) -> Dict[str, Any]:
+        """创建 Disk I/O 监控仪表盘 (专属性能测试视角)"""
+        disk_df = df[df['metric_type'] == 'disk'].copy()
+        if disk_df.empty: return {}
+
+        disk_df[val_col] = pd.to_numeric(disk_df[val_col], errors='coerce')
+        disk_df = disk_df.dropna(subset=[val_col])
+
+        if 'labels_parsed' in disk_df.columns:
+            disk_df['disk_name'] = disk_df['labels_parsed'].apply(
+                lambda x: (x.get('disk') or x.get('disk_name') or 'unknown') if isinstance(x, dict) else 'unknown')
+        else:
+            disk_df['disk_name'] = 'Total'
+
+        fig = go.Figure()
+
+        unique_disks = disk_df['disk_name'].unique()
+
+        for disk_name in unique_disks:
+            specific_disk_df = disk_df[disk_df['disk_name'] == disk_name]
+
+            # 1. 读速率 (MB/s)
+            read_df = specific_disk_df[specific_disk_df['name'] == 'disk_read_bytes_per_sec']
+            if not read_df.empty:
+                x_data = read_df['timestamp'].astype(str).tolist()
+                # 🚀 转换为 MB/s 更符合直觉
+                y_data_mb = [round(y / (1024 ** 2), 2) for y in read_df[val_col].tolist()]
+
+                fig.add_trace(
+                    go.Scatter(x=x_data, y=y_data_mb,
+                               mode='lines+markers', name=f'{disk_name} ⬇️ 读取 (MB/s)',
+                               line=dict(color=self.colors[2], width=2),
+                               marker=dict(size=6))
+                )
+
+            # 2. 写速率 (MB/s)
+            write_df = specific_disk_df[specific_disk_df['name'] == 'disk_write_bytes_per_sec']
+            if not write_df.empty:
+                x_data = write_df['timestamp'].astype(str).tolist()
+                y_data_mb = [round(y / (1024 ** 2), 2) for y in write_df[val_col].tolist()]
+
+                fig.add_trace(
+                    go.Scatter(x=x_data, y=y_data_mb,
+                               mode='lines+markers', name=f'{disk_name} ⬆️ 写入 (MB/s)',
+                               line=dict(color=self.colors[3], width=2, dash='dot'),
+                               marker=dict(size=6))
+                )
+
+        # 样式美化
+        fig.update_layout(
+            title_text="💽 磁盘 I/O 吞吐量监控面板 (性能视角)",
+            template=self.layout_template,
+            height=400,
+            hovermode="x unified",
+            yaxis_title="吞吐速率 (MB/s)"
+        )
+
+        fig.update_xaxes(type="date", title_text="真实时间")
+
+        return {'disk_io_dashboard': {'figure': fig, 'type': 'plotly_html'}}
