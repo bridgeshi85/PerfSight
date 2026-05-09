@@ -3,6 +3,7 @@ from typing import Dict, Any
 import pandas as pd
 from analyzers.base_analyzer import BaseMetricAnalyzer
 from analyzers.cpu_analyzer import CPUAnalyzer
+from analyzers.disk_analyzer import DiskAnalyzer
 from analyzers.memory_analyzer import MemoryAnalyzer
 from analyzers.network_analyzer import NetworkAnalyzer
 
@@ -19,7 +20,8 @@ class MetricsProcessor:
         self.analyzers = {
             'cpu': CPUAnalyzer(config),
             'memory': MemoryAnalyzer(config),
-            'network': NetworkAnalyzer(config)
+            'network': NetworkAnalyzer(config),
+            'disk': DiskAnalyzer(config)
         }
 
     async def process(self, df: pd.DataFrame) -> Dict[str, Any]:

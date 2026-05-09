@@ -1,88 +1,75 @@
 use anyhow::Result;
-use serde_json::Value;
 use std::collections::HashMap;
-use sysinfo::{Disk, Disks};
+use serde_json::Value;
+use sysinfo::{Disks};
 
 
 use super::Metric;
 
-pub fn collect_disk_metrics(mount_points: &[String]) -> Result<Vec<Metric>> {
-    let mut metrics = Vec::new();
+pub struct DiskCollector {
+    disks: Disks,
+    target_disks: Vec<String>,
+}
 
-    // 初始化并获取最新的磁盘列表
-    let disks = Disks::new_with_refreshed_list();
-    
-    for disk in disks.list() {
-        let mount_point = Disk::mount_point(&disk).to_string_lossy().to_string();
-        
-        // 如果指定了监控的挂载点，则只监控指定的
-        if !mount_points.is_empty() && !mount_points.contains(&mount_point) {
-            continue;
+impl DiskCollector {
+    pub fn new(target_disks: Vec<String>) -> Self {
+        log::debug!("Initializing DiskCollector for disks: {:?}", target_disks);
+        Self {
+            disks: Disks::new_with_refreshed_list(),
+            target_disks,
         }
-        
-        let mut labels = HashMap::new();
-        labels.insert("mount_point".to_string(), mount_point.clone());
-        labels.insert("file_system".to_string(), Disk::file_system(&disk).to_string_lossy().to_string());
-        labels.insert("disk_name".to_string(), Disk::name(&disk).to_string_lossy().to_string());
-        
-        let total_space = disk.total_space();
-        let available_space = disk.available_space();
-        let used_space = total_space - available_space;
-        
-        let used_percent = if total_space > 0 {
-            (used_space as f64 / total_space as f64) * 100.0
-        } else {
-            0.0
-        };
-        
-        // 磁盘使用详情
-        let mut disk_details = serde_json::Map::new();
-        disk_details.insert("total_bytes".to_string(), Value::Number(serde_json::Number::from(total_space)));
-        disk_details.insert("used_bytes".to_string(), Value::Number(serde_json::Number::from(used_space)));
-        disk_details.insert("available_bytes".to_string(), Value::Number(serde_json::Number::from(available_space)));
-        disk_details.insert("used_percent".to_string(), Value::Number(serde_json::Number::from_f64(used_percent).unwrap()));
-        
-        metrics.push(Metric::new(
-            "disk_usage".to_string(),
-            "disk".to_string(),
-            Value::Object(disk_details),
-            labels.clone(),
-            None,
-        ));
-        
-        // 单独的磁盘指标
-        metrics.push(Metric::new(
-            "disk_total_bytes".to_string(),
-            "disk".to_string(),
-            Value::Number(serde_json::Number::from(total_space)),
-            labels.clone(),
-            Some("bytes".to_string()),
-        ));
-        
-        metrics.push(Metric::new(
-            "disk_used_bytes".to_string(),
-            "disk".to_string(),
-            Value::Number(serde_json::Number::from(used_space)),
-            labels.clone(),
-            Some("bytes".to_string()),
-        ));
-        
-        metrics.push(Metric::new(
-            "disk_used_percent".to_string(),
-            "disk".to_string(),
-            Value::Number(serde_json::Number::from_f64(used_percent).unwrap()),
-            labels.clone(),
-            Some("percent".to_string()),
-        ));
-        
-        metrics.push(Metric::new(
-            "disk_available_bytes".to_string(),
-            "disk".to_string(),
-            Value::Number(serde_json::Number::from(available_space)),
-            labels,
-            Some("bytes".to_string()),
-        ));
     }
-    
-    Ok(metrics)
+
+    pub fn collect(&mut self) -> Result<Vec<Metric>> {
+        let mut metrics = Vec::new();
+
+        self.disks.refresh(true);
+
+        for disk in &self.disks {
+            let disk_name = disk.name().to_string_lossy().to_string();
+
+            // 如果指定了监控的磁盘，则只监控指定的
+            if !self.target_disks.is_empty() && !self.target_disks.contains(&disk_name) {
+                continue;
+            }
+
+            let mut labels = HashMap::new();
+            labels.insert("disk".to_string(), disk_name.clone());
+
+            let usage = disk.usage();
+            // 距离上一次 collect() 被调用期间的字节数 (通常作为“速率”IO使用)
+            let read_diff = usage.read_bytes;
+            let written_diff = usage.written_bytes;
+
+            // 这是自开机以来的总读写字节数 (仅作记录)
+            let _total_read = usage.total_read_bytes;
+            let _total_written = usage.total_written_bytes;
+
+            log::debug!(
+                "Disk [{}]: Read {} B, Written {} B (since last check)",
+                disk_name, read_diff, written_diff
+            );
+
+            // 读取吞吐量
+            metrics.push(Metric::new(
+                "disk_read_bytes_per_sec".to_string(),
+                "disk".to_string(),
+                Value::Number(serde_json::Number::from(read_diff)),
+                labels.clone(),
+                Some("bytes/s".to_string()),
+            ));
+
+            // 写入吞吐量
+            metrics.push(Metric::new(
+                "disk_write_bytes_per_sec".to_string(),
+                "disk".to_string(),
+                Value::Number(serde_json::Number::from(written_diff)),
+                labels.clone(),
+                Some("bytes/s".to_string()),
+            ));
+        }
+
+        log::debug!("✅ 成功采集磁盘指标: {} 个记录", metrics.len());
+        Ok(metrics)
+    }
 }

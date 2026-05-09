@@ -1,4 +1,5 @@
 import os
+import logging
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
@@ -6,6 +7,8 @@ import yaml
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -19,6 +22,8 @@ class DataProcessingConfig:
 class VisualizationConfig:
     enable_cpu_chart: bool = True
     enable_memory_chart: bool = True
+    enable_network_chart: bool = True
+    enable_disk_chart: bool = True
     figure_size: tuple = (12, 6)
     output_dir: str = "./reports/charts"
 
