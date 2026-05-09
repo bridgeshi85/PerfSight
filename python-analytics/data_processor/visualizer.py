@@ -3,6 +3,7 @@
 """
 
 import logging
+import json
 from typing import Dict, Any
 import pandas as pd
 import plotly.graph_objects as go
@@ -229,9 +230,26 @@ class DataVisualizer:
         disk_df = disk_df.dropna(subset=[val_col])
 
         if 'labels_parsed' in disk_df.columns:
-            disk_df['disk_name'] = disk_df['labels_parsed'].apply(
-                lambda x: (x.get('disk') or x.get('disk_name') or 'unknown') if isinstance(x, dict) else 'unknown')
+            labels_series = disk_df['labels_parsed']
+        elif 'labels' in disk_df.columns:
+            def parse_labels(raw_labels):
+                if isinstance(raw_labels, dict):
+                    return raw_labels
+                if pd.isna(raw_labels):
+                    return {}
+                try:
+                    return json.loads(raw_labels)
+                except (ValueError, TypeError, json.JSONDecodeError):
+                    return {}
+
+            labels_series = disk_df['labels'].apply(parse_labels)
         else:
+            labels_series = pd.Series([{}] * len(disk_df), index=disk_df.index)
+
+        disk_df['disk_name'] = labels_series.apply(
+            lambda x: (x.get('disk') or x.get('disk_name') or 'unknown') if isinstance(x, dict) else 'unknown'
+        )
+        if (disk_df['disk_name'] == 'unknown').all():
             disk_df['disk_name'] = 'Total'
 
         fig = go.Figure()

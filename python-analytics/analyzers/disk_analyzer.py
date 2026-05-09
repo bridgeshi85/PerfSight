@@ -3,14 +3,13 @@ import json
 import logging
 from typing import Dict, Any
 
+from analyzers.base_analyzer import BaseMetricAnalyzer
+
 logger = logging.getLogger(__name__)
 
 
-class DiskAnalyzer:
+class DiskAnalyzer(BaseMetricAnalyzer):
     """💽 磁盘 I/O 智能分析器 (适配时序性能数据)"""
-
-    def __init__(self, config=None):
-        self.config = config
 
     @staticmethod
     def analyze(df: pd.DataFrame) -> Dict[str, Any]:
@@ -18,34 +17,43 @@ class DiskAnalyzer:
         分析磁盘 I/O 数据流
         :param df: 包含全量监控数据的 Pandas DataFrame
         """
+        result = {'metrics': {}, 'insights': {}}
+
         if df is None or df.empty:
-            return {}
+            return result
 
         # 1. 过滤出磁盘数据
         disk_df = df[df['metric_type'] == 'disk'].copy()
         if disk_df.empty:
-            return {"summary": "未采集到磁盘数据"}
+            result['insights']['summary'] = '未采集到磁盘数据'
+            return result
 
         # 确保 value 是数值类型
         disk_df['value'] = pd.to_numeric(disk_df['value'], errors='coerce')
         disk_df = disk_df.dropna(subset=['value'])
 
-        # 2. 解析 labels 获取具体磁盘名称 (应对 '{"disk":"Macintosh HD"}')
-        def extract_disk_name(label_str):
+        # 兼容字符串 JSON / dict / 空值，统一生成 labels_parsed 供后续复用
+        def parse_labels(raw_labels):
+            if isinstance(raw_labels, dict):
+                return raw_labels
+            if pd.isna(raw_labels):
+                return {}
             try:
-                # 兼容不同格式的引号或 None
-                if pd.isna(label_str): return 'unknown'
-                labels = json.loads(label_str)
-                return labels.get('disk') or labels.get('disk_name', 'unknown')
-            except:
+                return json.loads(raw_labels)
+            except (ValueError, TypeError, json.JSONDecodeError):
+                return {}
+
+        disk_df['labels_parsed'] = disk_df['labels'].apply(parse_labels)
+
+        # 2. 解析 labels 获取具体磁盘名称 (应对 '{"disk":"Macintosh HD"}')
+        def extract_disk_name(labels):
+            if not isinstance(labels, dict):
                 return 'unknown'
+            return labels.get('disk') or labels.get('disk_name', 'unknown')
 
-        disk_df['disk_name'] = disk_df['labels'].apply(extract_disk_name)
+        disk_df['disk_name'] = disk_df['labels_parsed'].apply(extract_disk_name)
 
-        analysis_result = {
-            "disks": {},
-            "summary": "正常"
-        }
+        result['metrics']['disks'] = {}
 
         high_io_warnings = []
 
@@ -79,7 +87,7 @@ class DiskAnalyzer:
             else:
                 disk_stats['write'] = {"avg_mbps": 0.0, "max_mbps": 0.0, "spike_count": 0}
 
-            analysis_result["disks"][disk_name] = disk_stats
+            result['metrics']['disks'][disk_name] = disk_stats
 
             # 4. 生成诊断结论
             # 假设持续写入超过 50MB/s 或读取超过 100MB/s 属于高压状态 (阈值可根据你的 SSD 性能调整)
@@ -92,8 +100,9 @@ class DiskAnalyzer:
                     f"[{disk_name}] 出现频繁的写入毛刺 (共 {disk_stats['write']['spike_count']} 次突发落盘)")
 
         if high_io_warnings:
-            analysis_result["summary"] = " | ".join(high_io_warnings)
+            result['insights']['summary'] = ' | '.join(high_io_warnings)
+            result['insights']['warning'] = result['insights']['summary']
         else:
-            analysis_result["summary"] = "磁盘 I/O 运行平稳，未见明显读写瓶颈。"
+            result['insights']['summary'] = '磁盘 I/O 运行平稳，未见明显读写瓶颈。'
 
-        return analysis_result
+        return result
