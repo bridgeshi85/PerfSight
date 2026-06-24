@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from datetime import datetime
 import pandas as pd
 
@@ -16,7 +16,7 @@ class ReportBuilder:
         self.template_path = Path(__file__).resolve().parent.parent / "templates" / "report_template.html"
 
     async def generate_html_report(self, analysis_results: Dict[str, Any],
-                                   charts: Dict[str, Any], ai_insights: Optional[Dict[str, Any]],
+                                   charts: Dict[str, Any],
                                    output_dir: Path) -> Path:
         logger.info("开始装配交互式 HTML 报告...")
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -34,14 +34,12 @@ class ReportBuilder:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         overview_cards = self._build_overview_cards(analysis_results)
         charts_html = self._build_plotly_charts(charts)
-        ai_section_html = self._build_ai_section(ai_insights) if ai_insights else ""
 
         # 4. 组装最终 HTML
         final_html = html_template.format(
             timestamp=timestamp,
             overview_cards=overview_cards,
             charts_html=charts_html,
-            ai_section_html=ai_section_html
         )
 
         # 5. 生成文件名并保存
@@ -115,13 +113,3 @@ class ReportBuilder:
                 """
         return charts_html
 
-    @staticmethod
-    def _build_ai_section(ai_insights: Dict[str, Any]) -> str:
-        """构建 AI 洞察区域"""
-        content = '<div class="section"><h2>🧠 智能诊断分析</h2>'
-
-        if 'summary' in ai_insights:
-            content += f'<div class="ai-insight"><h4>📋 结论摘要</h4><p>{ai_insights["summary"]}</p></div>'
-
-        content += '</div>'
-        return content

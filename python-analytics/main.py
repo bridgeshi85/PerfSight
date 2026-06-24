@@ -17,7 +17,6 @@ from rich.logging import RichHandler
 from config.settings import AnalyticsConfig
 from data_processor.cleaner import DataCleaner
 from data_processor.visualizer import DataVisualizer
-from ai_diagnosis.analyzer import AIAnalyzer
 from report_generator.report_builder import ReportBuilder
 from data_processor.metrics_processor import MetricsProcessor
 
@@ -61,20 +60,15 @@ def cli(ctx, config: Optional[str], verbose: bool):
               default='./reports', help='输出报告目录')
 @click.option('--format', '-f', type=click.Choice(['html', 'pdf', 'both']),
               default='html', help='报告格式')
-@click.option('--ai-analysis', is_flag=True,
-              help='启用 AI 智能分析')
 @click.pass_obj
-def analyze(config: AnalyticsConfig, input_dir: str, output_dir: str,
-            format: str, ai_analysis: bool):
+def analyze(config: AnalyticsConfig, input_dir: str, output_dir: str, format: str):
     """分析性能数据并生成报告"""
 
-    asyncio.run(_analyze_async(
-        config, input_dir, output_dir, format, ai_analysis
-    ))
+    asyncio.run(_analyze_async(config, input_dir, output_dir, format))
 
 
 async def _analyze_async(config: AnalyticsConfig, input_dir: str,
-                         output_dir: str, format: str, ai_analysis: bool):
+                         output_dir: str, format: str):
     """异步分析函数"""
 
     try:
@@ -106,32 +100,22 @@ async def _analyze_async(config: AnalyticsConfig, input_dir: str,
 
         console.print(f"✅ 可视化完成，生成 {len(charts)} 个图表")
 
-        # 4. AI智能分析
-        ai_insights = None
-        if ai_analysis:
-            console.print("\n🧠 [bold yellow]步骤 4: AI 智能分析[/bold yellow]")
-            ai_analyzer = AIAnalyzer(config)
-            ai_insights = await ai_analyzer.analyze(
-                cleaned_data, analysis_results, charts
-            )
-            console.print("✅ AI 分析完成")
-
-        # 5. 生成报告
-        console.print("\n📄 [bold yellow]步骤 5: 生成报告[/bold yellow]")
+        # 4. 生成报告
+        console.print("\n📄 [bold yellow]步骤 4: 生成报告[/bold yellow]")
         report_builder = ReportBuilder(config)
 
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
         html_path = await report_builder.generate_html_report(
-            analysis_results, charts, ai_insights, output_path
+            analysis_results, charts, output_path
         )
         console.print(f"✅ HTML 报告: {html_path}")
 
         console.print("\n🎉 [bold green]分析完成！[/bold green]")
 
     except Exception as e:
-        logger.error(f"分析过程中发生错误: {e}")
+        logger.error(f"分析过程中发生错误: {e}", exc_info=True)
         console.print(f"❌ [red]错误: {e}[/red]")
         sys.exit(1)
 
@@ -183,7 +167,7 @@ async def _visualize_async(config: AnalyticsConfig, input_file: str, output_dir:
         console.print(f"\n🎉 [bold green]可视化完成！共生成 {len(charts)} 个图表[/bold green]")
 
     except Exception as e:
-        logger.error(f"可视化过程中发生错误: {e}")
+        logger.error(f"可视化过程中发生错误: {e}", exc_info=True)
         console.print(f"❌ [red]错误: {e}[/red]")
         sys.exit(1)
 

@@ -1,12 +1,8 @@
-import os
 import logging
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Optional
 import yaml
 from dotenv import load_dotenv
-
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -24,17 +20,8 @@ class VisualizationConfig:
     enable_memory_chart: bool = True
     enable_network_chart: bool = True
     enable_disk_chart: bool = True
-    figure_size: tuple = (12, 6)
+    figure_size: list = field(default_factory=lambda: [12, 6])
     output_dir: str = "./reports/charts"
-
-
-@dataclass
-class AIAnalysisConfig:
-    """AI 分析配置 (通用化设计，支持 OpenAI 或 本地 Ollama)"""
-    enabled: bool = False
-    model_name: str = "gpt-4"
-    api_key: Optional[str] = field(default_factory=lambda: os.getenv("OPENAI_API_KEY"))
-    base_url: Optional[str] = field(default_factory=lambda: os.getenv("OPENAI_BASE_URL"))
 
 
 @dataclass
@@ -42,7 +29,6 @@ class AnalyticsConfig:
     """主配置类"""
     data_processing: DataProcessingConfig = field(default_factory=DataProcessingConfig)
     visualization: VisualizationConfig = field(default_factory=VisualizationConfig)
-    ai_analysis: AIAnalysisConfig = field(default_factory=AIAnalysisConfig)
 
     debug: bool = False
 
@@ -61,7 +47,6 @@ class AnalyticsConfig:
         return cls(
             data_processing=DataProcessingConfig(**data.get('data_processing', {})),
             visualization=VisualizationConfig(**data.get('visualization', {})),
-            ai_analysis=AIAnalysisConfig(**data.get('ai_analysis', {})),
             debug=data.get('debug', False)
         )
 
