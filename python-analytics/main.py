@@ -108,14 +108,14 @@ async def _analyze_async(config: AnalyticsConfig, input_dir: str,
         output_path.mkdir(parents=True, exist_ok=True)
 
         html_path = await report_builder.generate_html_report(
-            analysis_results, charts, None, output_path
+            analysis_results, charts, output_path
         )
         console.print(f"✅ HTML 报告: {html_path}")
 
         console.print("\n🎉 [bold green]分析完成！[/bold green]")
 
     except Exception as e:
-        logger.error(f"分析过程中发生错误: {e}")
+        logger.error(f"分析过程中发生错误: {e}", exc_info=True)
         console.print(f"❌ [red]错误: {e}[/red]")
         sys.exit(1)
 
@@ -167,7 +167,7 @@ async def _visualize_async(config: AnalyticsConfig, input_file: str, output_dir:
         console.print(f"\n🎉 [bold green]可视化完成！共生成 {len(charts)} 个图表[/bold green]")
 
     except Exception as e:
-        logger.error(f"可视化过程中发生错误: {e}")
+        logger.error(f"可视化过程中发生错误: {e}", exc_info=True)
         console.print(f"❌ [red]错误: {e}[/red]")
         sys.exit(1)
 
