@@ -22,7 +22,7 @@ class VisualizationConfig:
     enable_memory_chart: bool = True
     enable_network_chart: bool = True
     enable_disk_chart: bool = True
-    figure_size: tuple = (12, 6)
+    figure_size: list = field(default_factory=lambda: [12, 6])
     output_dir: str = "./reports/charts"
 
 
