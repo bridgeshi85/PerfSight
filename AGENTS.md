@@ -17,7 +17,9 @@ PerfSight/
 ## 核心约束
 
 - commit message 遵循 conventional commits（`fix:` / `feat:` / `chore:`）
-- 代码变更必须附带对应测试
+- Rust 代码：编译通过 `cargo build`
+- Python 代码：语法通过，不强制写 UT
+- 如果有现有测试套件，改完后运行验证不破坏
 - 不做 spec 范围外的假设性改动，有疑问先确认
 
 ## 分支策略
