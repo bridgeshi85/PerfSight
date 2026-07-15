@@ -58,8 +58,8 @@ def cli(ctx, config: Optional[str], verbose: bool):
               required=True, help='输入数据目录')
 @click.option('--output-dir', '-o', type=click.Path(),
               default='./reports', help='输出报告目录')
-@click.option('--format', '-f', type=click.Choice(['html', 'pdf', 'both']),
-              default='html', help='报告格式')
+@click.option('--format', '-f', type=click.Choice(['html']),
+              default='html', help='报告格式（目前仅支持 HTML）')
 @click.pass_obj
 def analyze(config: AnalyticsConfig, input_dir: str, output_dir: str, format: str):
     """分析性能数据并生成报告"""
