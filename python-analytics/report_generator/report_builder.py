@@ -15,9 +15,9 @@ class ReportBuilder:
         # 动态定位模板文件路径 (假设 templates 文件夹在项目根目录)
         self.template_path = Path(__file__).resolve().parent.parent / "templates" / "report_template.html"
 
-    async def generate_html_report(self, analysis_results: Dict[str, Any],
-                                   charts: Dict[str, Any],
-                                   output_dir: Path) -> Path:
+    def generate_html_report(self, analysis_results: Dict[str, Any],
+                             charts: Dict[str, Any],
+                             output_dir: Path) -> Path:
         logger.info("开始装配交互式 HTML 报告...")
         output_dir.mkdir(parents=True, exist_ok=True)
 

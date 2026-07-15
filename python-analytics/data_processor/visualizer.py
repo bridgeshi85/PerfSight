@@ -23,7 +23,7 @@ class DataVisualizer:
         self.layout_template = "plotly_white"
         self.colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
 
-    async def create_charts(self, df: pd.DataFrame, analysis_results: Dict[str, Any]) -> Dict[str, Any]:
+    def create_charts(self, df: pd.DataFrame, analysis_results: Dict[str, Any]) -> Dict[str, Any]:
         """总控流水线：根据配置和数据，创建所有交互式图表"""
         charts = {}
         if df.empty:
@@ -35,28 +35,28 @@ class DataVisualizer:
 
         # 1. 绘制 CPU 相关图表
         if self.viz_config.enable_cpu_chart:
-            cpu_charts = await self._create_cpu_dashboards(df, val_col)
+            cpu_charts = self._create_cpu_dashboards(df, val_col)
             charts.update(cpu_charts)
 
         # 2. 绘制 Memory 相关图表
         if self.viz_config.enable_memory_chart:
-            mem_charts = await self._create_memory_dashboards(df, val_col)
+            mem_charts = self._create_memory_dashboards(df, val_col)
             charts.update(mem_charts)
 
         # 3. 绘制 Network 相关图表 (如果你后续在配置里打开了)
         if getattr(self.viz_config, 'enable_network_chart', True):
-            net_charts = await self._create_network_dashboards(df, val_col)
+            net_charts = self._create_network_dashboards(df, val_col)
             charts.update(net_charts)
 
         # 4. 绘制 Disk I/O 相关图表
         if getattr(self.viz_config, 'enable_disk_chart', True):
-            disk_charts = await self._create_disk_dashboards(df, val_col)
+            disk_charts = self._create_disk_dashboards(df, val_col)
             charts.update(disk_charts)
 
         logger.info(f"图表生成完成，共 {len(charts)} 个可视化面板")
         return charts
 
-    async def _create_cpu_dashboards(self, df: pd.DataFrame, val_col: str) -> Dict[str, Any]:
+    def _create_cpu_dashboards(self, df: pd.DataFrame, val_col: str) -> Dict[str, Any]:
         """创建 CPU 监控仪表盘 (仅保留时间趋势折线图)"""
         cpu_df = df[df['metric_type'] == 'cpu'].copy()
         if cpu_df.empty: return {}
@@ -108,7 +108,7 @@ class DataVisualizer:
 
         return {'cpu_dashboard': {'figure': fig, 'type': 'plotly_html'}}
 
-    async def _create_memory_dashboards(self, df: pd.DataFrame, val_col: str) -> Dict[str, Any]:
+    def _create_memory_dashboards(self, df: pd.DataFrame, val_col: str) -> Dict[str, Any]:
         """创建 Memory 监控仪表盘 (双 Y 轴折线图)"""
         mem_df = df[df['metric_type'] == 'memory'].copy()
         if mem_df.empty:
@@ -170,7 +170,7 @@ class DataVisualizer:
 
         return {'memory_dashboard': {'figure': fig, 'type': 'plotly_html'}}
 
-    async def _create_network_dashboards(self, df: pd.DataFrame, val_col: str) -> Dict[str, Any]:
+    def _create_network_dashboards(self, df: pd.DataFrame, val_col: str) -> Dict[str, Any]:
         """创建 Network 网络监控仪表盘"""
         net_df = df[df['metric_type'] == 'network'].copy()
         if net_df.empty: return {}
@@ -221,7 +221,7 @@ class DataVisualizer:
 
         return {'network_dashboard': {'figure': fig, 'type': 'plotly_html'}}
 
-    async def _create_disk_dashboards(self, df: pd.DataFrame, val_col: str) -> Dict[str, Any]:
+    def _create_disk_dashboards(self, df: pd.DataFrame, val_col: str) -> Dict[str, Any]:
         """创建 Disk I/O 监控仪表盘 (专属性能测试视角)"""
         disk_df = df[df['metric_type'] == 'disk'].copy()
         if disk_df.empty: return {}

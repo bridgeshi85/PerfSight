@@ -24,7 +24,7 @@ class MetricsProcessor:
             'disk': DiskAnalyzer(config)
         }
 
-    async def process(self, df: pd.DataFrame) -> Dict[str, Any]:
+    def process(self, df: pd.DataFrame) -> Dict[str, Any]:
         """执行完整的指标处理流水线"""
         if df.empty: return {}
         logger.info("开始执行指标专项处理与分析...")
