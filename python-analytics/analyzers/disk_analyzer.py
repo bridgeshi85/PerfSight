@@ -1,9 +1,9 @@
 import pandas as pd
-import json
 import logging
 from typing import Dict, Any
 
 from analyzers.base_analyzer import BaseMetricAnalyzer
+from utils import parse_labels, extract_disk_name
 
 logger = logging.getLogger(__name__)
 
@@ -33,24 +33,9 @@ class DiskAnalyzer(BaseMetricAnalyzer):
         disk_df = disk_df.dropna(subset=['value'])
 
         # 兼容字符串 JSON / dict / 空值，统一生成 labels_parsed 供后续复用
-        def parse_labels(raw_labels):
-            if isinstance(raw_labels, dict):
-                return raw_labels
-            if pd.isna(raw_labels):
-                return {}
-            try:
-                return json.loads(raw_labels)
-            except (ValueError, TypeError, json.JSONDecodeError):
-                return {}
-
         disk_df['labels_parsed'] = disk_df['labels'].apply(parse_labels)
 
         # 2. 解析 labels 获取具体磁盘名称 (应对 '{"disk":"Macintosh HD"}')
-        def extract_disk_name(labels):
-            if not isinstance(labels, dict):
-                return 'unknown'
-            return labels.get('disk') or labels.get('disk_name', 'unknown')
-
         disk_df['disk_name'] = disk_df['labels_parsed'].apply(extract_disk_name)
 
         result['metrics']['disks'] = {}
