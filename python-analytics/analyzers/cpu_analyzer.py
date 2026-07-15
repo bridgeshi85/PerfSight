@@ -9,10 +9,13 @@ logger = logging.getLogger(__name__)
 class CPUAnalyzer(BaseMetricAnalyzer):
     def analyze(self, df: pd.DataFrame) -> Dict[str, Any]:
         result = {'metrics': {}, 'insights': {}}
+        # 优先使用 DataCleaner 清洗后的 value_parsed 列，缺失时回退到原始 value 列
+        val_col = 'value_parsed' if 'value_parsed' in df.columns else 'value'
+
         # 1. 核心 CPU 使用率分析
         cpu_percent_df = df[df['name'] == 'cpu_usage_percent']
         if not cpu_percent_df.empty:
-            s = cpu_percent_df['value']
+            s = cpu_percent_df[val_col]
             stats = self.calculate_basic_stats(s)
             numeric_s = pd.to_numeric(s, errors='coerce').dropna()
 
@@ -31,6 +34,6 @@ class CPUAnalyzer(BaseMetricAnalyzer):
             load_df = df[df['name'] == load_metric]
             if not load_df.empty:
                 result['metrics'][load_metric] = {
-                    'stats': self.calculate_basic_stats(load_df['value'])
+                    'stats': self.calculate_basic_stats(load_df[val_col])
                 }
         return result
