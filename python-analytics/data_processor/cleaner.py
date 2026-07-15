@@ -3,7 +3,6 @@
 负责清洗和预处理从 Rust Agent 收集的扁平化性能数据
 """
 
-import json
 import logging
 from pathlib import Path
 from typing import List, Dict, Any
@@ -11,6 +10,7 @@ import pandas as pd
 import numpy as np
 
 from config.settings import AnalyticsConfig
+from utils import parse_labels
 
 logger = logging.getLogger(__name__)
 
@@ -127,12 +127,7 @@ class DataCleaner:
     def _parse_labels(self, df: pd.DataFrame) -> pd.DataFrame:
         """将 JSON 格式的 labels 字符串转为真实的 Python 字典"""
         if 'labels' in df.columns:
-            def safe_json_load(x):
-                if isinstance(x, dict): return x
-                try: return json.loads(x) if isinstance(x, str) else {}
-                except: return {}
-
-            df['labels_parsed'] = df['labels'].apply(safe_json_load)
+            df['labels_parsed'] = df['labels'].apply(parse_labels)
         return df
 
     def _handle_outliers(self, df: pd.DataFrame) -> pd.DataFrame:
