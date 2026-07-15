@@ -4,7 +4,6 @@ PerfSight Analytics Engine
 性能数据分析和智能诊断引擎
 """
 
-import asyncio
 import logging
 import sys
 from pathlib import Path
@@ -64,13 +63,6 @@ def cli(ctx, config: Optional[str], verbose: bool):
 def analyze(config: AnalyticsConfig, input_dir: str, output_dir: str, format: str):
     """分析性能数据并生成报告"""
 
-    asyncio.run(_analyze_async(config, input_dir, output_dir, format))
-
-
-async def _analyze_async(config: AnalyticsConfig, input_dir: str,
-                         output_dir: str, format: str):
-    """异步分析函数"""
-
     try:
         console.print(f"📂 输入目录: {input_dir}")
         console.print(f"📁 输出目录: {output_dir}")
@@ -78,7 +70,7 @@ async def _analyze_async(config: AnalyticsConfig, input_dir: str,
         # 1. 数据清洗
         console.print("\n🧹 [bold yellow]步骤 1: 数据清洗[/bold yellow]")
         cleaner = DataCleaner(config)
-        cleaned_data = await cleaner.clean_directory(input_dir)
+        cleaned_data = cleaner.clean_directory(input_dir)
 
         if cleaned_data.empty:
             console.print("❌ [red]未找到有效数据[/red]")
@@ -89,14 +81,14 @@ async def _analyze_async(config: AnalyticsConfig, input_dir: str,
         # 2. 数据分析
         console.print("\n📊 [bold yellow]步骤 2: 数据分析[/bold yellow]")
         processor = MetricsProcessor(config)
-        analysis_results = await processor.process(cleaned_data)
+        analysis_results = processor.process(cleaned_data)
 
         console.print(f"✅ 分析完成 ")
 
         # 3. 数据可视化
         console.print("\n📈 [bold yellow]步骤 3: 数据可视化[/bold yellow]")
         visualizer = DataVisualizer(config)
-        charts = await visualizer.create_charts(cleaned_data, analysis_results)
+        charts = visualizer.create_charts(cleaned_data, analysis_results)
 
         console.print(f"✅ 可视化完成，生成 {len(charts)} 个图表")
 
@@ -107,7 +99,7 @@ async def _analyze_async(config: AnalyticsConfig, input_dir: str,
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        html_path = await report_builder.generate_html_report(
+        html_path = report_builder.generate_html_report(
             analysis_results, charts, output_path
         )
         console.print(f"✅ HTML 报告: {html_path}")
@@ -129,19 +121,13 @@ async def _analyze_async(config: AnalyticsConfig, input_dir: str,
 def visualize(config: AnalyticsConfig, input_file: str, output_dir: str):
     """仅生成数据可视化图表"""
 
-    asyncio.run(_visualize_async(config, input_file, output_dir))
-
-
-async def _visualize_async(config: AnalyticsConfig, input_file: str, output_dir: str):
-    """异步可视化函数"""
-
     try:
         console.print(f"📂 输入文件: {input_file}")
         console.print(f"📁 输出目录: {output_dir}")
 
         # 数据清洗
         cleaner = DataCleaner(config)
-        cleaned_data = await cleaner.clean_file(input_file)
+        cleaned_data = cleaner.clean_file(input_file)
 
         if cleaned_data.empty:
             console.print("❌ [red]未找到有效数据[/red]")
@@ -149,11 +135,11 @@ async def _visualize_async(config: AnalyticsConfig, input_file: str, output_dir:
 
         # 数据分析
         processor = MetricsProcessor(config)
-        analysis_results = await processor.process(cleaned_data)
+        analysis_results = processor.process(cleaned_data)
 
         # 生成图表
         visualizer = DataVisualizer(config)
-        charts = await visualizer.create_charts(cleaned_data, analysis_results)
+        charts = visualizer.create_charts(cleaned_data, analysis_results)
 
         # 保存图表
         output_path = Path(output_dir)

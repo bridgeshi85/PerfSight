@@ -22,7 +22,7 @@ class DataCleaner:
         self.config = config
         self.dp_config = config.data_processing
 
-    async def clean_directory(self, data_dir: str) -> pd.DataFrame:
+    def clean_directory(self, data_dir: str) -> pd.DataFrame:
         """清洗目录中的所有数据文件"""
         data_path = Path(data_dir)
 
@@ -35,7 +35,7 @@ class DataCleaner:
         # 目前 Rust 探针主要输出 CSV，我们专注处理 CSV
         for csv_file in csv_files:
             try:
-                data = await self._load_csv_file(csv_file)
+                data = self._load_csv_file(csv_file)
                 if not data.empty:
                     all_data.extend(data.to_dict('records'))
                     logger.info(f"已加载 CSV 文件: {csv_file.name}, {len(data)} 条记录")
@@ -47,19 +47,19 @@ class DataCleaner:
             return pd.DataFrame()
 
         df = pd.DataFrame(all_data)
-        return self._clean_dataframe(df)  # 移除了 async，因为内部全是同步的 Pandas 操作
+        return self._clean_dataframe(df)
 
-    async def clean_file(self, file_path: str) -> pd.DataFrame:
+    def clean_file(self, file_path: str) -> pd.DataFrame:
         """清洗单个数据文件"""
         file_path = Path(file_path)
 
         if not file_path.exists():
             raise FileNotFoundError(f"文件不存在: {file_path}")
 
-        df = await self._load_csv_file(file_path)
+        df = self._load_csv_file(file_path)
         return self._clean_dataframe(df)
 
-    async def _load_csv_file(self, file_path: Path) -> pd.DataFrame:
+    def _load_csv_file(self, file_path: Path) -> pd.DataFrame:
         """加载 CSV 文件 (带容错机制)"""
         try:
             # 使用 on_bad_lines='skip' 完美防御极个别由于系统原因导致的断行错乱
