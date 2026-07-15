@@ -9,11 +9,13 @@ logger = logging.getLogger(__name__)
 class MemoryAnalyzer(BaseMetricAnalyzer):
     def analyze(self, df: pd.DataFrame) -> Dict[str, Any]:
         result = {'metrics': {}, 'insights': {}}
+        # 优先使用 DataCleaner 清洗后的 value_parsed 列，缺失时回退到原始 value 列
+        val_col = 'value_parsed' if 'value_parsed' in df.columns else 'value'
 
         # 针对内存使用率
         mem_percent_df = df[df['name'] == 'memory_used_percent']
         if not mem_percent_df.empty:
-            s = mem_percent_df['value']
+            s = mem_percent_df[val_col]
             stats = self.calculate_basic_stats(s)
             numeric_s = pd.to_numeric(s, errors='coerce').dropna()
 
