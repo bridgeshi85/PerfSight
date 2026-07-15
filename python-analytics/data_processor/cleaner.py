@@ -141,18 +141,21 @@ class DataCleaner:
         if threshold <= 0 or 'value_parsed' not in df.columns:
             return df
 
-        # 根据指标名称 (name) 分组处理异常值，因为 CPU 和 Memory 的量级完全不同
-        for name, group in df.groupby('name'):
-            s = group['value_parsed']
-            if s.std() > 0:
-                # 计算 Z-score
-                z_scores = np.abs((s - s.mean()) / s.std())
-                outlier_mask = z_scores > threshold
+        df = df.copy()
 
-                if outlier_mask.any():
-                    count = outlier_mask.sum()
-                    logger.debug(f"[{name}] 压制了 {count} 个极端毛刺数据")
-                    # 用中位数平滑替换掉毛刺
-                    df.loc[outlier_mask.index[outlier_mask], 'value_parsed'] = s.median()
+        # 根据指标名称 (name) 分组计算 Z-score，因为 CPU 和 Memory 的量级完全不同
+        grouped = df.groupby('name')['value_parsed']
+        means = grouped.transform('mean')
+        stds = grouped.transform('std')
+        medians = grouped.transform('median')
+
+        z_scores = np.abs((df['value_parsed'] - means) / stds)
+        outlier_mask = (stds > 0) & (z_scores > threshold)
+
+        if outlier_mask.any():
+            for name, count in df.loc[outlier_mask, 'name'].value_counts().items():
+                logger.debug(f"[{name}] 压制了 {count} 个极端毛刺数据")
+            # 用各分组的中位数平滑替换掉毛刺
+            df.loc[outlier_mask, 'value_parsed'] = medians[outlier_mask]
 
         return df

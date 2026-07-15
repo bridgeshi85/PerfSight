@@ -44,12 +44,12 @@ class DataVisualizer:
             charts.update(mem_charts)
 
         # 3. 绘制 Network 相关图表 (如果你后续在配置里打开了)
-        if getattr(self.viz_config, 'enable_network_chart', True):
+        if self.viz_config.enable_network_chart:
             net_charts = await self._create_network_dashboards(df, val_col)
             charts.update(net_charts)
 
         # 4. 绘制 Disk I/O 相关图表
-        if getattr(self.viz_config, 'enable_disk_chart', True):
+        if self.viz_config.enable_disk_chart:
             disk_charts = await self._create_disk_dashboards(df, val_col)
             charts.update(disk_charts)
 
