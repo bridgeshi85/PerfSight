@@ -29,18 +29,18 @@ class DataCleaner:
         if not data_path.exists():
             raise FileNotFoundError(f"数据目录不存在: {data_dir}")
 
-        csv_files = list(data_path.glob("*.csv"))
+        data_files = list(data_path.glob("*.csv")) + list(data_path.glob("*.jsonl"))
         all_data = []
 
-        # 目前 Rust 探针主要输出 CSV，我们专注处理 CSV
-        for csv_file in csv_files:
+        # Rust 探针支持输出 CSV 或 JSONL，两种格式都处理
+        for data_file in data_files:
             try:
-                data = self._load_csv_file(csv_file)
+                data = await self._load_file(data_file)
                 if not data.empty:
                     all_data.extend(data.to_dict('records'))
-                    logger.info(f"已加载 CSV 文件: {csv_file.name}, {len(data)} 条记录")
+                    logger.info(f"已加载文件: {data_file.name}, {len(data)} 条记录")
             except Exception as e:
-                logger.warning(f"加载 CSV 文件失败 {csv_file.name}: {e}")
+                logger.warning(f"加载文件失败 {data_file.name}: {e}")
 
         if not all_data:
             logger.warning("未找到有效数据")
@@ -56,10 +56,16 @@ class DataCleaner:
         if not file_path.exists():
             raise FileNotFoundError(f"文件不存在: {file_path}")
 
-        df = self._load_csv_file(file_path)
+        df = await self._load_file(file_path)
         return self._clean_dataframe(df)
 
-    def _load_csv_file(self, file_path: Path) -> pd.DataFrame:
+    async def _load_file(self, file_path: Path) -> pd.DataFrame:
+        """根据文件后缀分发到对应的加载器"""
+        if file_path.suffix.lower() == '.jsonl':
+            return await self._load_jsonl_file(file_path)
+        return await self._load_csv_file(file_path)
+
+    async def _load_csv_file(self, file_path: Path) -> pd.DataFrame:
         """加载 CSV 文件 (带容错机制)"""
         try:
             # 使用 on_bad_lines='skip' 完美防御极个别由于系统原因导致的断行错乱
@@ -72,6 +78,15 @@ class DataCleaner:
             return df
         except Exception as e:
             logger.error(f"CSV 加载错误 {file_path}: {e}")
+            return pd.DataFrame()
+
+    async def _load_jsonl_file(self, file_path: Path) -> pd.DataFrame:
+        """加载 JSONL 文件 (Rust 探针 --format json 的逐行 JSON 输出)"""
+        try:
+            df = pd.read_json(file_path, lines=True, encoding='utf-8')
+            return df
+        except Exception as e:
+            logger.error(f"JSONL 加载错误 {file_path}: {e}")
             return pd.DataFrame()
 
     def _clean_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:

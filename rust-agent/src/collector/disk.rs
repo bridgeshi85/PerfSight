@@ -26,15 +26,19 @@ impl DiskCollector {
         self.disks.refresh(true);
 
         for disk in &self.disks {
+            // 挂载点/盘符 (Windows: "C:\\"，Linux: "/"、"/data")，与配置字段 disk_mount_points 语义一致
+            let mount_point = disk.mount_point().to_string_lossy().to_string();
+            // 卷标 / 设备名 (Windows: 卷标签，Linux: "/dev/sda1")，仅作展示用途
             let disk_name = disk.name().to_string_lossy().to_string();
 
-            // 如果指定了监控的磁盘，则只监控指定的
-            if !self.target_disks.is_empty() && !self.target_disks.contains(&disk_name) {
+            // 如果指定了监控的磁盘，则按挂载点/盘符过滤
+            if !self.target_disks.is_empty() && !self.target_disks.contains(&mount_point) {
                 continue;
             }
 
             let mut labels = HashMap::new();
-            labels.insert("disk".to_string(), disk_name.clone());
+            labels.insert("disk".to_string(), mount_point.clone());
+            labels.insert("disk_name".to_string(), disk_name.clone());
 
             let usage = disk.usage();
             // 距离上一次 collect() 被调用期间的字节数 (通常作为“速率”IO使用)
@@ -46,8 +50,8 @@ impl DiskCollector {
             let _total_written = usage.total_written_bytes;
 
             log::debug!(
-                "Disk [{}]: Read {} B, Written {} B (since last check)",
-                disk_name, read_diff, written_diff
+                "Disk [{} / {}]: Read {} B, Written {} B (since last check)",
+                mount_point, disk_name, read_diff, written_diff
             );
 
             // 读取吞吐量
